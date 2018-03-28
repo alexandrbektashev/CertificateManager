@@ -1,0 +1,9 @@
+C:\Users\aesth\source\repos\Syst_doc\Syst_doc\bin\Debug\Syst_doc.exe.config
+C:\Users\aesth\source\repos\Syst_doc\Syst_doc\bin\Debug\Syst_doc.exe
+C:\Users\aesth\source\repos\Syst_doc\Syst_doc\bin\Debug\Syst_doc.pdb
+C:\Users\aesth\source\repos\Syst_doc\Syst_doc\obj\Debug\Syst_doc.csprojResolveAssemblyReference.cache
+C:\Users\aesth\source\repos\Syst_doc\Syst_doc\obj\Debug\Syst_doc.csproj.CoreCompileInputs.cache
+C:\Users\aesth\source\repos\Syst_doc\Syst_doc\obj\Debug\Syst_doc.exe
+C:\Users\aesth\source\repos\Syst_doc\Syst_doc\obj\Debug\Syst_doc.pdb
+C:\Users\aesth\source\repos\Syst_doc\Syst_doc\obj\Debug\Interop.CERTENROLLLib.dll
+C:\Users\aesth\source\repos\Syst_doc\Syst_doc\obj\Debug\Syst_doc.csproj.ResolveComReference.cache
