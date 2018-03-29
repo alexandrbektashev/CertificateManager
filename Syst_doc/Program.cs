@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 using CERTENROLLLib;
@@ -12,133 +9,119 @@ using System.IO;
 
 namespace ConsoleApplication1
 {
-        class Program
-    {    
-            static byte[] Sign(string text, X509Certificate2 cert )
+    class Program
+    {
+        //test things
+        const string certsubject = "ALEXANDR";
+        const string certname = "testcert.cert";
 
-            {
-
-                RSACryptoServiceProvider csp = null;
-                           
-                csp = (RSACryptoServiceProvider)cert.PrivateKey;
-
-                if (csp == null)
-
-                {
-
-                    throw new Exception("No valid cert was found");
-
-                }
-
-
-                // Hash the data
-
-                SHA1Managed sha1 = new SHA1Managed();
-
-                UnicodeEncoding encoding = new UnicodeEncoding();
-
-                byte[] data = encoding.GetBytes(text);
-
-                byte[] hash = sha1.ComputeHash(data);
-
-
-                // Sign the hash
-
-                return csp.SignHash(hash, CryptoConfig.MapNameToOID("SHA1"));
-
-            }
-
-
-            static bool Verify(string text, byte[] signature, string certPath)
-
-            {
-
-                // Load the certificate we'll use to verify the signature from a file
-
-                X509Certificate2 cert = new X509Certificate2(certPath);
-
-                // Note:
-
-                // If we want to use the client cert in an ASP.NET app, we may use something like this instead:
-
-                // X509Certificate2 cert = new X509Certificate2(Request.ClientCertificate.Certificate);
-
-
-                // Get its associated CSP and public key
-
-                RSACryptoServiceProvider csp = (RSACryptoServiceProvider)cert.PublicKey.Key;
-
-
-                // Hash the data
-
-                SHA1Managed sha1 = new SHA1Managed();
-
-                UnicodeEncoding encoding = new UnicodeEncoding();
-
-                byte[] data = encoding.GetBytes(text);
-
-                byte[] hash = sha1.ComputeHash(data);
-
-
-                // Verify the signature with the hash
-
-                return csp.VerifyHash(hash, CryptoConfig.MapNameToOID("SHA1"), signature);
-
-            }
-
-
-            static void Main(string[] args)
-
-            {
-
-            // Usage sample
-           X509Certificate2 mycert = CreateSelfSignedCertificate("ALEXANDR");
+        static void Main(string[] args)
+        {
             
+            //Create certificate
+            X509Certificate2 mycert = CreateSelfSignedCertificate(certsubject);
 
-                try
+            try
+            {
+                //test data
+                string dataToSign = "Test";
 
-                {
+                // Sign text
 
-                    // Sign text
-
-                    byte[] signature = Sign("Test", mycert);
-
+                //Signature is represented by array of bytes
+                //To sign smth we need chunk of data and certificate with private key
+                //The selfsigned cert may be used in this programm
+                byte[] signature = Sign(dataToSign, mycert);
                 Console.WriteLine("Signed successfully!!");
+
+                //Ecport cert
                 string certexp = ExportToPEM(mycert);
-                StreamWriter sw = new StreamWriter("testcert.cer");
+                StreamWriter sw = new StreamWriter(certname);
                 sw.WriteLine(certexp);
                 sw.Close();
-                    // Verify signature. Testcert.cer corresponds to "cn=my cert subject"
 
-                    if (Verify("Test", signature, "testcert.cer"))
 
-                    {
-
-                        Console.WriteLine("Signature verified");
-
-                    }
-
-                    else
-
-                    {
-
-                        Console.WriteLine("ERROR: Signature not valid!");
-
-                    }
-
-                }
-
-                catch (Exception ex)
-
-                {
-
-                    Console.WriteLine("EXCEPTION: " + ex.Message);
-
-                }
-
-                Console.ReadKey();
+                // Verify signature
+                if (Verify(dataToSign, signature, certname))
+                    Console.WriteLine("Signature verified");
+                else
+                    Console.WriteLine("ERROR: Signature not valid!");
 
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine("EXCEPTION: " + ex.Message);
+            }
+
+            Console.ReadKey();
+
+        }
+
+
+
+        static byte[] Sign(string text, X509Certificate2 cert)
+        {
+
+            //Create obj for private key 
+            RSACryptoServiceProvider csp = null; 
+            csp = (RSACryptoServiceProvider)cert.PrivateKey;
+            
+            //IF SONETHING GOES WRONG:)
+            if (csp == null)
+                throw new Exception("No valid cert was found");
+
+            // Hash the data
+            //There are cool methods in .NET dor cryptography and hashes
+            SHA1Managed sha1 = new SHA1Managed();
+            UnicodeEncoding encoding = new UnicodeEncoding();
+
+            //to encode we may use bytes array
+            byte[] data = encoding.GetBytes(text);
+            byte[] hash = sha1.ComputeHash(data);
+
+
+            // Sign the hash
+            return csp.SignHash(hash, CryptoConfig.MapNameToOID("SHA1"));
+
+        }
+
+
+        static bool Verify(string text, byte[] signature, X509Certificate2 cert)
+        {
+
+            
+            // Load the certificate we'll use to verify the signature from a file
+            //Not needed actually
+            //X509Certificate2 cert = new X509Certificate2(certPath);
+
+            // Note:
+
+            // If we want to use the client cert in an ASP.NET app, we may use something like this instead:
+
+            // X509Certificate2 cert = new X509Certificate2(Request.ClientCertificate.Certificate);
+
+
+            // Get its associated CSP and public key
+
+            RSACryptoServiceProvider csp = (RSACryptoServiceProvider)cert.PublicKey.Key;
+
+
+            // Hash the data
+
+            SHA1Managed sha1 = new SHA1Managed();
+
+            UnicodeEncoding encoding = new UnicodeEncoding();
+
+            byte[] data = encoding.GetBytes(text);
+
+            byte[] hash = sha1.ComputeHash(data);
+
+
+            // Verify the signature with the hash
+
+            return csp.VerifyHash(hash, CryptoConfig.MapNameToOID("SHA1"), signature);
+
+        }
 
         public static X509Certificate2 CreateSelfSignedCertificate(string subjectName)
         {
@@ -196,15 +179,17 @@ namespace ConsoleApplication1
             // instantiate the target class with the PKCS#12 data (and the empty password)
             return new X509Certificate2(Convert.FromBase64String(base64encoded), "",
                 // mark the private key as exportable (this is usually what you want to do)
-                X509KeyStorageFlags.Exportable
-            );
+                X509KeyStorageFlags.Exportable);
         }
+
+
         public static string ExportToPEM(X509Certificate cert)
         {
             StringBuilder builder = new StringBuilder();
 
             builder.AppendLine("-----BEGIN CERTIFICATE-----");
-            builder.AppendLine(Convert.ToBase64String(cert.Export(X509ContentType.Cert), Base64FormattingOptions.InsertLineBreaks));
+            builder.AppendLine(Convert.ToBase64String(cert.Export(X509ContentType.Cert), 
+                Base64FormattingOptions.InsertLineBreaks));
             builder.AppendLine("-----END CERTIFICATE-----");
 
             return builder.ToString();
@@ -212,6 +197,6 @@ namespace ConsoleApplication1
 
     }
 
-    }
+}
 
 
