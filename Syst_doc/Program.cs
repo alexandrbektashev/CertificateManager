@@ -7,20 +7,19 @@ using System.IO;
 
 
 
-namespace ConsoleApplication1
+namespace Syst_doc
 {
     class Program
     {
         //test things
         const string certsubject = "ALEXANDR";
-        const string certname = "testcert.cert";
+        const string certname = "testcert.crt";
 
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
-            
-            //Create certificate
-            X509Certificate2 mycert = CreateSelfSignedCertificate(certsubject);
 
+            //Create certificate
+            X509Certificate2 mycert;
             try
             {
                 //test data
@@ -31,21 +30,60 @@ namespace ConsoleApplication1
                 //Signature is represented by array of bytes
                 //To sign smth we need chunk of data and certificate with private key
                 //The selfsigned cert may be used in this programm
-                byte[] signature = Sign(dataToSign, mycert);
-                Console.WriteLine("Signed successfully!!");
 
-                //Ecport cert
-                string certexp = ExportToPEM(mycert);
-                StreamWriter sw = new StreamWriter(certname);
-                sw.WriteLine(certexp);
-                sw.Close();
+                Console.WriteLine("Create a certificate or open?\n1 - create, 2 - open, 0 - exit");
+                string answer = Console.ReadLine();
 
-
-                // Verify signature
-                if (Verify(dataToSign, signature, mycert))
-                    Console.WriteLine("Signature verified");
+                if (answer == "1")
+                {
+                    mycert = CreateSelfSignedCertificate(certsubject);
+                    //Export cert
+                    string certexp = ExportToPEM(mycert);
+                    StreamWriter sw = new StreamWriter(certname);
+                    sw.WriteLine(certexp);
+                    sw.Close();
+                }
+                else if (answer == "2")
+                    mycert = new X509Certificate2(certname);
+                else if (answer == "0")
+                    return 0;
                 else
-                    Console.WriteLine("ERROR: Signature not valid!");
+                    throw new Exception("Invalid input");
+                string filepath = "";
+                byte[] signature;
+                while (true)
+                {
+                    Console.WriteLine("Choose file:");
+                    filepath = Console.ReadLine();
+                    if (!File.Exists(filepath)) throw new Exception("File does't exist");
+
+                    Console.WriteLine("1 - sign data, 2 - verify data, 0 - exit");
+                    answer = Console.ReadLine();
+
+                    if (answer == "1")
+                    {
+                        signature = Sign(dataToSign, mycert);
+                        Console.WriteLine("Signed successfully!!");
+                        File.WriteAllBytes(filepath + ".sgtr", signature);
+                        Console.WriteLine("Signature was written into \"{0}.sgtr\" file", filepath);
+                    }
+
+                    else if (answer == "2")
+                    {
+                        signature = File.ReadAllBytes(filepath + ".sgtr");
+                        // Verify signature
+                        if (Verify(dataToSign, signature, mycert))
+                            Console.WriteLine("Signature verified");
+                        else
+                            Console.WriteLine("ERROR: Signature not valid!");
+
+                    }
+                    else if (answer == "0")
+                        break;
+                    else
+                        throw new Exception("Invalid input");
+
+                }
 
             }
             catch (Exception ex)
@@ -54,7 +92,7 @@ namespace ConsoleApplication1
             }
 
             Console.ReadKey();
-
+            return 0;
         }
 
 
@@ -133,47 +171,39 @@ namespace ConsoleApplication1
                 ObjectIdPublicKeyFlags.XCN_CRYPT_OID_INFO_PUBKEY_ANY,
                 AlgorithmFlags.AlgorithmFlagsNone, "SHA512");
 
-            // add extended key usage if you want - look at MSDN for a list of possible OIDs
-            var oid = new CObjectId();
-            oid.InitializeFromValue("1.3.6.1.5.5.7.3.1"); // SSL server
-            var oidlist = new CObjectIds();
-            oidlist.Add(oid);
-            var eku = new CX509ExtensionEnhancedKeyUsage();
-            eku.InitializeEncode(oidlist);
-
             // Create the self signing request
             var cert = new CX509CertificateRequestCertificate();
             cert.InitializeFromPrivateKey(X509CertificateEnrollmentContext.ContextMachine, privateKey, "");
             cert.Subject = dn;
-            cert.Issuer = dn; // the issuer and the subject are the same
+            cert.Issuer = dn; // The issuer and the subject are the same
             cert.NotBefore = DateTime.Now;
-            // this cert expires immediately. Change to whatever makes sense for you
-            cert.NotAfter = new DateTime(2018, 12, 31);
-            //cert.X509Extensions.Add((CX509Extension)eku); // add the EKU
+            cert.NotAfter = new DateTime(2018, 12, 31); // I don't think that anybody cares about using this cert longer than this period
             cert.HashAlgorithm = hashobj; // Specify the hashing algorithm
-            cert.Encode(); // encode the certificate
+            cert.Encode(); // Encode the certificate
 
-            // Do the final enrollment process
+            // Do the final stuff
+            //Enroll is 
             var enroll = new CX509Enrollment();
             enroll.InitializeFromRequest(cert); // load the certificate
-            enroll.CertificateFriendlyName = subjectName; // Optional: add a friendly name
             string csr = enroll.CreateRequest(); // Output the request in base64
                                                  // and install it back as the response
             enroll.InstallResponse(InstallResponseRestrictionFlags.AllowUntrustedCertificate,
                 csr, EncodingType.XCN_CRYPT_STRING_BASE64, ""); // no password
                                                                 // output a base64 encoded PKCS#12 so we can import it back to the .Net security classes
-            var base64encoded = enroll.CreatePFX("", // no password, this is for internal consumption
+            var base64encoded = enroll.CreatePFX("", // password isn't possible
                 PFXExportOptions.PFXExportChainWithRoot);
 
             // instantiate the target class with the PKCS#12 data (and the empty password)
             return new X509Certificate2(Convert.FromBase64String(base64encoded), "",
-                // mark the private key as exportable (this is usually what you want to do)
+                // mark the private key as exportable, coz we want to put it into registry 
                 X509KeyStorageFlags.Exportable);
         }
 
 
         public static string ExportToPEM(X509Certificate cert)
         {
+
+            //This methods return the exportable form of the cert
             StringBuilder builder = new StringBuilder();
 
             builder.AppendLine("-----BEGIN CERTIFICATE-----");
