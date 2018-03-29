@@ -42,7 +42,7 @@ namespace ConsoleApplication1
 
 
                 // Verify signature
-                if (Verify(dataToSign, signature, certname))
+                if (Verify(dataToSign, signature, mycert))
                     Console.WriteLine("Signature verified");
                 else
                     Console.WriteLine("ERROR: Signature not valid!");
@@ -82,63 +82,52 @@ namespace ConsoleApplication1
 
             // Sign the hash
             return csp.SignHash(hash, CryptoConfig.MapNameToOID("SHA1"));
-
         }
 
 
         static bool Verify(string text, byte[] signature, X509Certificate2 cert)
         {
-
-            
             // Load the certificate we'll use to verify the signature from a file
             //Not needed actually
-            //X509Certificate2 cert = new X509Certificate2(certPath);
+            //debug X509Certificate2 cert = new X509Certificate2(certPath);
 
-            // Note:
-
-            // If we want to use the client cert in an ASP.NET app, we may use something like this instead:
-
-            // X509Certificate2 cert = new X509Certificate2(Request.ClientCertificate.Certificate);
-
-
+            //To verify data we need only public key
             // Get its associated CSP and public key
-
             RSACryptoServiceProvider csp = (RSACryptoServiceProvider)cert.PublicKey.Key;
-
-
+          
             // Hash the data
-
             SHA1Managed sha1 = new SHA1Managed();
-
             UnicodeEncoding encoding = new UnicodeEncoding();
 
+            //Get data and hash as bytes array
             byte[] data = encoding.GetBytes(text);
-
             byte[] hash = sha1.ComputeHash(data);
 
-
             // Verify the signature with the hash
-
             return csp.VerifyHash(hash, CryptoConfig.MapNameToOID("SHA1"), signature);
-
         }
 
         public static X509Certificate2 CreateSelfSignedCertificate(string subjectName)
         {
-            // create DN for subject and issuer
-            var dn = new CX500DistinguishedName();
+            //To make a certificate was used system library from CERTENROLLLib
+            //This lib provides methods for creation certificates in windows envinronment
+            
+
+            //Defines the subject and issuer of the cert
+            CX500DistinguishedName dn = new CX500DistinguishedName();
             dn.Encode("CN=" + subjectName, X500NameFlags.XCN_CERT_NAME_STR_NONE);
 
-            // create a new private key for the certificate
+            //Create a new private key for the certificate
+            //Was decided not to make them variably in this progr
             CX509PrivateKey privateKey = new CX509PrivateKey();
-            privateKey.ProviderName = "Microsoft Base Cryptographic Provider v1.0";
+            privateKey.ProviderName = "Microsoft Base Cryptographic Provider v1.0"; //issuer for a selfsigned certificate
             privateKey.MachineContext = true;
-            privateKey.Length = 2048;
-            privateKey.KeySpec = X509KeySpec.XCN_AT_SIGNATURE; // use is not limited
+            privateKey.Length = 2048; 
+            privateKey.KeySpec = X509KeySpec.XCN_AT_SIGNATURE; //Use is not limited
             privateKey.ExportPolicy = X509PrivateKeyExportFlags.XCN_NCRYPT_ALLOW_PLAINTEXT_EXPORT_FLAG;
             privateKey.Create();
 
-            // Use the stronger SHA512 hashing algorithm
+            //Use trong SHA512 hashing algorithm
             var hashobj = new CObjectId();
             hashobj.InitializeFromAlgorithmName(ObjectIdGroupId.XCN_CRYPT_HASH_ALG_OID_GROUP_ID,
                 ObjectIdPublicKeyFlags.XCN_CRYPT_OID_INFO_PUBKEY_ANY,
@@ -160,7 +149,7 @@ namespace ConsoleApplication1
             cert.NotBefore = DateTime.Now;
             // this cert expires immediately. Change to whatever makes sense for you
             cert.NotAfter = new DateTime(2018, 12, 31);
-            cert.X509Extensions.Add((CX509Extension)eku); // add the EKU
+            //cert.X509Extensions.Add((CX509Extension)eku); // add the EKU
             cert.HashAlgorithm = hashobj; // Specify the hashing algorithm
             cert.Encode(); // encode the certificate
 
