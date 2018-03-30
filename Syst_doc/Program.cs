@@ -362,9 +362,9 @@ namespace Syst_doc
 
             // Add the FileSystemAccessRule to the security settings
             if (addOrRemove)
-                fSecurity.AddAccessRule(new FileSystemAccessRule(account, fsr, act));
+                fSecurity.AddAccessRule(new FileSystemAccessRule(string.Format(@"{0}\{1}", currudn, account), fsr, act));
             else 
-                fSecurity.RemoveAccessRule(new FileSystemAccessRule(account, fsr, act));
+                fSecurity.RemoveAccessRule(new FileSystemAccessRule(string.Format(@"{0}\{1}", currudn, account), fsr, act));
 
             // Set the new access settings
             fInfo.SetAccessControl(fSecurity);
@@ -421,7 +421,7 @@ namespace Syst_doc
                     regUserRoot + regStudentSurname, regSubKeySignature, Array.Empty<byte>());
                 if (signature.Length == 0) throw new Exception("ERROR: Signature is empty");
 
-                string dataToSign = File.ReadAllText(filename);
+               
 
                 Console.WriteLine("Enter certificate path to open: \n(blank space for current " +
                        "directory and name \"{0}\")", defaultCertName);
@@ -429,16 +429,19 @@ namespace Syst_doc
                 certname = certname == "" ? defaultCertName : certname;
                 X509Certificate2 mycert = new X509Certificate2(certname);
 
+                ChangeFileSecurityRule(filename, false, defaultSubjectName, FileSystemRights.FullControl, AccessControlType.Deny);
+                string dataToSign = File.ReadAllText(filename);
                 if (Verify(dataToSign, signature, mycert))
+                {
                     Console.WriteLine("Access allowed");
+                    if (answer == "2")
+                        ChangeFileSecurityRule(filename, true, defaultSubjectName, FileSystemRights.FullControl, AccessControlType.Deny);
+                }
                 else
-                    throw new Exception("Access denied");
-
-                if (answer == "2")
-                    ChangeFileSecurityRule(filename, true, defaultSubjectName, FileSystemRights.FullControl, AccessControlType.Deny);
-                else
+                {
                     ChangeFileSecurityRule(filename, false, defaultSubjectName, FileSystemRights.FullControl, AccessControlType.Deny);
-
+                    throw new Exception("Access denied");
+                }
 
             }
             else throw new Exception("wrong input");
