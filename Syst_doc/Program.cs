@@ -11,6 +11,11 @@ namespace Syst_doc
 {
     class Program
     {
+        const string defaultCertName = "testcert.crt";
+        const string defaultSubjectName = "ALEXANDR";
+        const string defaultSysInfoPath = "";
+        const string defaultSysInfoName = "syst.tat";
+        const string defaultPrivateKeyPath = "pk.xml";
 
         static int Main(string[] args)
         {
@@ -19,15 +24,11 @@ namespace Syst_doc
             X509Certificate2 mycert;
 
             // data
-            string dataToSign = "test";
+            string dataToSign;
             string certsubject;
             string certname;
 
-            const string defaultCertName = "testcert.crt";
-            const string defaultSubjectName = "ALEXANDR";
-            const string defaultSysInfoPath = "";
-            const string defaultSysInfoName = "syst.tat";
-            const string defaultPrivateKeyPath = "pk.txt";
+            
 
             try
             {
@@ -52,6 +53,9 @@ namespace Syst_doc
 
                     //create cert for subject
                     mycert = CreateSelfSignedCertificate(certsubject);
+                    Console.WriteLine("Certificate was created sucessfully");
+                    File.WriteAllText(defaultPrivateKeyPath, mycert.PrivateKey.ToXmlString(true));
+
 
                     //Export cert
                     string certexp = ExportToPEM(mycert);
@@ -62,7 +66,7 @@ namespace Syst_doc
                     StreamWriter sw = new StreamWriter(certname);
                     sw.WriteLine(certexp);
                     sw.Close();
-                    Console.WriteLine("Certificate {0} was created sucessfully", certname);
+                    Console.WriteLine("Certificate {0} was exported sucessfully", certname);
                 }
                 else if (answer == "2")
                 {
@@ -101,6 +105,7 @@ namespace Syst_doc
 
                     //create certificate
                     mycert = CreateSelfSignedCertificate(certsubject);
+                    Console.WriteLine("Certificate was created sucessfully");
 
                     //Export cert
                     string certexp = ExportToPEM(mycert);
@@ -111,16 +116,15 @@ namespace Syst_doc
                     StreamWriter sw = new StreamWriter(certname);
                     sw.WriteLine(certexp);
                     sw.Close();
-                    Console.WriteLine("Certificate {0} was created sucessfully", certname);
+                    Console.WriteLine("Certificate {0} was exported sucessfully", certname);
 
                     //take a look at our private key
-                    Console.WriteLine(mycert.PrivateKey.ToString());
-                    File.WriteAllText(defaultPrivateKeyPath, mycert.PrivateKey.ToString());
-
+                    File.WriteAllText(defaultPrivateKeyPath, mycert.PrivateKey.ToXmlString(true));
+                    
 
                     //sign system info
                     dataToSign = systeminfo;
-                    signature = Sign(dataToSign, mycert);
+                    signature = Sign(dataToSign, mycert, "");
                     Console.WriteLine("System info was signed.");
 
                     //put signature into registry
@@ -144,13 +148,15 @@ namespace Syst_doc
                     Console.WriteLine("Choose file:");
                     filepath = Console.ReadLine();
                     if (!File.Exists(filepath)) throw new Exception("File does't exist");
+                    dataToSign = File.ReadAllText(filepath);
 
                     Console.WriteLine("1 - sign data, 2 - verify data, 0 - exit");
                     answer = Console.ReadLine();
 
                     if (answer == "1")
                     {
-                        signature = Sign(dataToSign, mycert);
+                        string pk = File.ReadAllText(defaultPrivateKeyPath);
+                        signature = Sign(dataToSign, mycert, pk);
                         Console.WriteLine("Signed successfully!!");
                         File.WriteAllBytes(filepath + ".sgtr", signature);
                         Console.WriteLine("Signature was written into \"{0}.sgtr\" file", filepath);
@@ -158,6 +164,8 @@ namespace Syst_doc
 
                     else if (answer == "2")
                     {
+                        if (!File.Exists(filepath + ".sgtr")) 
+                            Console.WriteLine("There is no signature for the {0}", filepath);
                         signature = File.ReadAllBytes(filepath + ".sgtr");
                         // Verify signature
                         if (Verify(dataToSign, signature, mycert))
@@ -185,7 +193,7 @@ namespace Syst_doc
 
 
 
-        static byte[] Sign(string text, X509Certificate2 cert)
+        static byte[] Sign(string text, X509Certificate2 cert, string pkxml)
         {
 
             //Create obj for private key 
@@ -194,7 +202,14 @@ namespace Syst_doc
             
             //IF SONETHING GOES WRONG:)
             if (csp == null)
-                throw new Exception("No valid cert was found");
+            //throw new Exception("No valid cert was found");
+            {                
+                CspParameters cspParams = new CspParameters();
+                cspParams.Flags = CspProviderFlags.UseMachineKeyStore;
+                csp = new RSACryptoServiceProvider(cspParams);
+                csp.PersistKeyInCsp = true;
+                csp.FromXmlString(pkxml);
+            }
 
             // Hash the data
             //There are cool methods in .NET dor cryptography and hashes
@@ -215,6 +230,7 @@ namespace Syst_doc
         {
             // Load the certificate we'll use to verify the signature from a file
             //Not needed actually
+            
 
             //To verify data we need only public key
             // Get its associated CSP and public key
