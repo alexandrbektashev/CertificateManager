@@ -4,6 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography;
 using CERTENROLLLib;
 using System.IO;
+using Microsoft.Win32;
 
 
 
@@ -11,14 +12,24 @@ namespace Syst_doc
 {
     class Program
     {
+
+        //These constants save time
         const string defaultCertName = "testcert.crt";
         const string defaultSubjectName = "ALEXANDR";
         const string defaultSysInfoPath = "";
         const string defaultSysInfoName = "syst.tat";
         const string defaultPrivateKeyPath = "pk.xml";
 
+        //Registry settings
+        const string regUserRoot = "HKEY_CURRENT_USER\\Software\\Syst_doc\\";
+        const string regSubKeySignature = "Signature";
+        const string regSubKeyPrivateKey = "PrivateKey";
+        const string regStudentSurname = "BEKTASHEVSMIRNOV\\";
+
         static int Main(string[] args)
         {
+
+            //int Main contains user interface for interaction with programm
 
             // certificate
             X509Certificate2 mycert;
@@ -28,8 +39,6 @@ namespace Syst_doc
             string certsubject;
             string certname;
 
-            
-
             try
             {
 
@@ -38,6 +47,7 @@ namespace Syst_doc
                 //Signature is represented by array of bytes
                 //To sign smth we need chunk of data and certificate with private key
                 //The selfsigned cert may be used in this programm
+
                 Console.WriteLine("The program provides simple interface to create certificates," +
                     "sign and verife files");
                 Console.WriteLine();
@@ -55,7 +65,6 @@ namespace Syst_doc
                     mycert = CreateSelfSignedCertificate(certsubject);
                     Console.WriteLine("Certificate was created sucessfully");
                     File.WriteAllText(defaultPrivateKeyPath, mycert.PrivateKey.ToXmlString(true));
-
 
                     //Export cert
                     string certexp = ExportToPEM(mycert);
@@ -121,19 +130,19 @@ namespace Syst_doc
                     //take a look at our private key
                     File.WriteAllText(defaultPrivateKeyPath, mycert.PrivateKey.ToXmlString(true));
                     
-
                     //sign system info
                     dataToSign = systeminfo;
                     signature = Sign(dataToSign, mycert, "");
                     Console.WriteLine("System info was signed.");
 
                     //put signature into registry
-                    //DO IT LATER:)
+                    string keyName = regUserRoot + regStudentSurname;
+                    Registry.SetValue(keyName, regSubKeySignature, signature);
+                    //put private key into registry
+                    Registry.SetValue(keyName, regSubKeyPrivateKey, mycert.PrivateKey.ToXmlString(true));
 
-                    File.WriteAllBytes(systdocpath + defaultSysInfoName + ".sgtr", signature);
-                    File.WriteAllText(systdocpath + defaultSysInfoName + ".sgtradv", ExportSignature(signature), Encoding.Unicode);
-                    
-
+                    //File.WriteAllBytes(systdocpath + defaultSysInfoName + ".sgtr", signature);
+                    //File.WriteAllText(systdocpath + defaultSysInfoName + ".sgtradv", ExportSignature(signature), Encoding.Unicode);
 
                 }
 
