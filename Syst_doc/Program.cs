@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using CERTENROLLLib;
 using System.IO;
 using Microsoft.Win32;
+using System.Security.AccessControl;
 
 
 
@@ -15,7 +16,7 @@ namespace Syst_doc
 
         //These constants save time
         const string defaultCertName = "testcert.crt";
-        const string defaultSubjectName = "ALEXANDR";
+        static readonly string defaultSubjectName = Environment.UserName;
         const string defaultSysInfoPath = "";
         const string defaultSysInfoName = "syst.tat";
         const string defaultPrivateKeyPath = "pk.xml";
@@ -141,8 +142,10 @@ namespace Syst_doc
                     //put private key into registry
                     Registry.SetValue(keyName, regSubKeyPrivateKey, mycert.PrivateKey.ToXmlString(true));
 
-                    //File.WriteAllBytes(systdocpath + defaultSysInfoName + ".sgtr", signature);
-                    //File.WriteAllText(systdocpath + defaultSysInfoName + ".sgtradv", ExportSignature(signature), Encoding.Unicode);
+                    File.WriteAllBytes(systdocpath + defaultSysInfoName + ".sgtr", signature);
+                    File.WriteAllText(systdocpath + defaultSysInfoName + ".sgtradv", ExportSignature(signature), Encoding.Unicode);
+
+                    ChangeFileSecurityRule(defaultSysInfoPath + defaultSysInfoName, true, defaultSubjectName, FileSystemRights.FullControl, AccessControlType.Deny); 
 
                 }
 
@@ -333,10 +336,52 @@ namespace Syst_doc
             return builder.ToString();
         }
 
-        
 
+        public static void ChangeFileSecurityRule(string FileName, bool addOrRemove, string account, FileSystemRights fsr,
+            AccessControlType act)
+        {
+            string currudn = Environment.UserDomainName;
+
+            // Create fileinfo object
+            FileInfo fInfo = new FileInfo(FileName);
+            // Get a FileSecurity object that represents the  current security settings
+            FileSecurity fSecurity = fInfo.GetAccessControl();
+
+            // Add the FileSystemAccessRule to the security settings
+            if (addOrRemove)
+                fSecurity.AddAccessRule(new FileSystemAccessRule(account, fsr, act));
+            else 
+                fSecurity.RemoveAccessRule(new FileSystemAccessRule(account, fsr, act));
+
+            // Set the new access settings
+            fInfo.SetAccessControl(fSecurity);
+
+        }
+
+
+
+        public static void ShowInfo(string filename)
+        {
+            //This method displays list of rules
+
+            //create fileInfo object
+            FileInfo fInfo = new FileInfo(filename);
+            //Get security info
+            FileSecurity fSecurity = fInfo.GetAccessControl();
+            //Get the collection of rules
+            fSecurity.GetAccessRules(true, true, typeof(System.Security.Principal.NTAccount));
+
+            Console.WriteLine("\nCurrent ACL for the {0}:", filename);
+            Console.WriteLine("SID\tRights\tControlType\tSource");
+            //write each to the console
+            foreach (FileSystemAccessRule fsar in fSecurity.GetAccessRules(true, true, typeof(System.Security.Principal.NTAccount)))
+                Console.WriteLine("{0}\t{1}\t{2}\t{3}",
+                    fsar.IdentityReference.Value,
+                    fsar.FileSystemRights.ToString(),
+                    fsar.AccessControlType.ToString(),
+                    fsar.IsInherited ? "Inherited" : "Explicit");
+
+        }
     }
-
 }
-
 
