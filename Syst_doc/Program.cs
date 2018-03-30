@@ -11,46 +11,134 @@ namespace Syst_doc
 {
     class Program
     {
-        //test things
-        const string certsubject = "ALEXANDR";
-        const string certname = "testcert.crt";
 
         static int Main(string[] args)
         {
 
-            //Create certificate
+            // certificate
             X509Certificate2 mycert;
+
+            // data
+            string dataToSign = "test";
+            string certsubject;
+            string certname;
+
+            const string defaultCertName = "testcert.crt";
+            const string defaultSubjectName = "ALEXANDR";
+            const string defaultSysInfoPath = "";
+            const string defaultSysInfoName = "syst.tat";
+            const string defaultPrivateKeyPath = "pk.txt";
+
             try
             {
-                //test data
-                string dataToSign = "Test";
 
                 // Sign text
 
                 //Signature is represented by array of bytes
                 //To sign smth we need chunk of data and certificate with private key
                 //The selfsigned cert may be used in this programm
-
-                Console.WriteLine("Create a certificate or open?\n1 - create, 2 - open, 0 - exit");
+                Console.WriteLine("The program provides simple interface to create certificates," +
+                    "sign and verife files");
+                Console.WriteLine();
+                Console.WriteLine("Create a certificate or open?\n1 - create, 2 - open," +
+                    " 3 - install syst.tat 0 - exit");
                 string answer = Console.ReadLine();
-
+                byte[] signature;
                 if (answer == "1")
                 {
+                    Console.WriteLine("Enter certificate subject: (blank space for {0})", defaultSubjectName);
+                    certsubject = Console.ReadLine();
+                    certsubject = certsubject == "" ? defaultSubjectName : certsubject;
+
+                    //create cert for subject
                     mycert = CreateSelfSignedCertificate(certsubject);
+
                     //Export cert
                     string certexp = ExportToPEM(mycert);
+                    Console.WriteLine("Enter certificate path to export: \n(blank space for current " +
+                        "directory and name \"{0}\")", defaultCertName);
+                    certname = Console.ReadLine();
+                    certname = certname == "" ? defaultCertName : certname;
                     StreamWriter sw = new StreamWriter(certname);
                     sw.WriteLine(certexp);
                     sw.Close();
+                    Console.WriteLine("Certificate {0} was created sucessfully", certname);
                 }
                 else if (answer == "2")
+                {
+                    Console.WriteLine("Enter certificate path to open: \n(blank space for current " +
+                        "directory and name \"{0}\")", defaultCertName);
+                    certname = Console.ReadLine();
+                    certname = certname == "" ? defaultCertName : certname;
                     mycert = new X509Certificate2(certname);
+                }
+                else if (answer == "3")
+                {
+                    //get directory
+                    Console.WriteLine("Enter directory: (blank space for the same with programm)");
+                    string systdocpath = Console.ReadLine();
+                    if (!Directory.Exists(systdocpath) && (systdocpath != ""))
+                        throw new Exception("Directory doesn't exist");
+
+                    //grab info
+                    string systeminfo = string.Format(
+                        "User domain name: {0}{1}" +
+                        "User name: {2}{3}" +
+                        "Machine name: {4}{5}" +
+                        "OS version: {6}",
+                        Environment.UserDomainName, Environment.NewLine,
+                        Environment.UserName, Environment.NewLine,
+                        Environment.MachineName, Environment.NewLine,
+                        Environment.OSVersion);
+
+                    //write all info into the file
+                    File.WriteAllText(systdocpath + defaultSysInfoName, systeminfo);
+                    Console.WriteLine("System info was written to {0}", systdocpath + defaultSysInfoName);
+
+                    Console.WriteLine("Enter certificate subject: (blank space for {0})", defaultSubjectName);
+                    certsubject = Console.ReadLine();
+                    certsubject = certsubject == "" ? defaultSubjectName : certsubject;
+
+                    //create certificate
+                    mycert = CreateSelfSignedCertificate(certsubject);
+
+                    //Export cert
+                    string certexp = ExportToPEM(mycert);
+                    Console.WriteLine("Enter certificate path to export: \n(blank space for current " +
+                        "directory and name \"{0}\")", defaultCertName);
+                    certname = Console.ReadLine();
+                    certname = certname == "" ? defaultCertName : certname;
+                    StreamWriter sw = new StreamWriter(certname);
+                    sw.WriteLine(certexp);
+                    sw.Close();
+                    Console.WriteLine("Certificate {0} was created sucessfully", certname);
+
+                    //take a look at our private key
+                    Console.WriteLine(mycert.PrivateKey.ToString());
+                    File.WriteAllText(defaultPrivateKeyPath, mycert.PrivateKey.ToString());
+
+
+                    //sign system info
+                    dataToSign = systeminfo;
+                    signature = Sign(dataToSign, mycert);
+                    Console.WriteLine("System info was signed.");
+
+                    //put signature into registry
+                    //DO IT LATER:)
+
+                    File.WriteAllBytes(systdocpath + defaultSysInfoName + ".sgtr", signature);
+                    File.WriteAllText(systdocpath + defaultSysInfoName + ".sgtradv", ExportSignature(signature), Encoding.Unicode);
+                    
+
+
+                }
+
                 else if (answer == "0")
                     return 0;
                 else
                     throw new Exception("Invalid input");
                 string filepath = "";
-                byte[] signature;
+                
                 while (true)
                 {
                     Console.WriteLine("Choose file:");
@@ -75,7 +163,7 @@ namespace Syst_doc
                         if (Verify(dataToSign, signature, mycert))
                             Console.WriteLine("Signature verified");
                         else
-                            Console.WriteLine("ERROR: Signature not valid!");
+                            Console.WriteLine("ERROR: Signature is not valid!");
 
                     }
                     else if (answer == "0")
@@ -127,7 +215,6 @@ namespace Syst_doc
         {
             // Load the certificate we'll use to verify the signature from a file
             //Not needed actually
-            //debug X509Certificate2 cert = new X509Certificate2(certPath);
 
             //To verify data we need only public key
             // Get its associated CSP and public key
@@ -213,6 +300,15 @@ namespace Syst_doc
 
             return builder.ToString();
         }
+
+        public static string ExportSignature(byte[] sg)
+        {
+            StringBuilder builder = new StringBuilder();
+            builder.AppendLine(Convert.ToBase64String(sg, Base64FormattingOptions.InsertLineBreaks));
+            return builder.ToString();
+        }
+
+        
 
     }
 
