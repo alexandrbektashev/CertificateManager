@@ -141,8 +141,8 @@ namespace Syst_doc
                     //put private key into registry
                     Registry.SetValue(keyName, regSubKeyPrivateKey, mycert.PrivateKey.ToXmlString(true));
 
-                    File.WriteAllBytes(systdocpath + defaultSysInfoName + ".sgtr", signature);
-                    File.WriteAllText(systdocpath + defaultSysInfoName + ".sgtradv", ExportSignature(signature), Encoding.Unicode);
+                    //File.WriteAllBytes(systdocpath + defaultSysInfoName + ".sgtr", signature);
+                    //File.WriteAllText(systdocpath + defaultSysInfoName + ".sgtradv", ExportSignature(signature), Encoding.Unicode);
 
                 }
 
